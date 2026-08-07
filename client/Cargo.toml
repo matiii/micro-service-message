@@ -1,12 +1,10 @@
 [package]
-name = "broker"
+name = "client"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+common.workspace = true
 anyhow.workspace = true
-tokio-util.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true
-rustls.workspace = true
-common.workspace = true

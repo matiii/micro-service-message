@@ -5,6 +5,9 @@
       <sourceFolder url="file://$MODULE_DIR$/broker/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/query/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/storage/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/client/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/common/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
