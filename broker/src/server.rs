@@ -3,6 +3,7 @@ use rustls::{RootCertStore, ServerConfig};
 use rustls::server::WebPkiClientVerifier;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::time::{timeout, Duration, interval};
 use tokio_rustls::TlsAcceptor;
 use tokio_util::sync::CancellationToken;
 use common::certificates::{load_certificates, load_private_key};
@@ -46,12 +47,33 @@ impl Server {
             tokio::spawn(async move {
                 match acceptor.accept(stream).await {
                     Ok(mut stream) => {
+                        let mut ping_interval = interval(Duration::from_secs(10));
                         let mut bufor = [0u8; 1024];
                         loop {
-                            if let Ok(x) = stream.read(&mut bufor).await {
-                                println!("Received message: '{}'", String::from_utf8_lossy(&bufor[..x]));
+                            tokio::select! {
+                                _ = ping_interval.tick() => {
+                                    if let Err(e) = stream.write_all(b"PING\n").await {
+                                        println!("Client dead (write failed): {e}");
+                                        break;
+                                    }
+                                }
+                                result = timeout(Duration::from_secs(15), stream.read(&mut bufor)) => {
+                                    match result {
+                                        Ok(Ok(0)) => { println!("Client closed connection."); break; }
+                                        Ok(Ok(n)) => {
+                                            let response = String::from_utf8_lossy(&bufor[..n]);
+                                            if response.eq("PONG") {
+                                                println!("Client responded with PONG.");
+                                            } else {
+                                                println!("Received message: '{}'", response);
 
-                                _ = stream.write_all("I send respond. Server :)".as_bytes()).await;
+                                                _ = stream.write_all("I send respond. Server :)".as_bytes()).await;
+                                            }
+                                        }
+                                        Ok(Err(e)) => { println!("Read error: {e}"); break; }
+                                        Err(_) => { println!("No response in 15s — client presumed dead."); break; }
+                                    }
+                                }
                             }
                         }
 

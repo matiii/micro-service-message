@@ -1,6 +1,6 @@
-use std::io;
+use std::io::Write;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::rustls::{ClientConfig, RootCertStore};
 use tokio_rustls::rustls::pki_types::ServerName;
@@ -29,14 +29,20 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         print!("Type a message: ");
+        std::io::stdout().flush()?;
 
         let mut user_input = String::new();
-        if let Ok(x) = io::stdin().read_line(&mut user_input) {
+        if let Ok(x) = std::io::stdin().read_line(&mut user_input) {
             let input = user_input.trim();
 
             println!("Send input from client: '{}'", input);
 
             tls_stream.write_all(input.as_bytes()).await?;
+
+            let mut bufor = [0u8; 1024];
+            if let Ok(x) =tls_stream.read(&mut bufor).await {
+                println!("Received message: '{}'", String::from_utf8_lossy(&bufor[..x]));
+            }
         }
     }
 

@@ -13,7 +13,7 @@ members = [
 common = { path = "common" }
 
 anyhow = "1.0.104"
-tokio = { version = "1.53.1", features = ["net", "macros", "rt-multi-thread", "io-util"] }
+tokio = { version = "1.53.1", features = ["net", "macros", "rt-multi-thread", "io-util", "time"] }
 rustls = "0.23.43"
 tokio-rustls = "0.26.4"
 tokio-util = "0.7.19"

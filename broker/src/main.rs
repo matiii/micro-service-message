@@ -5,7 +5,7 @@ mod server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("Hello, world!");
+    println!("Micro Service Message broker started!");
 
     let configuration = ServerConfiguration::new(
         "0.0.0.0".to_string(),
