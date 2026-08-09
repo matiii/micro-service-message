@@ -10,8 +10,9 @@ async fn main() -> anyhow::Result<()> {
     let configuration = ServerConfiguration::new(
         "0.0.0.0".to_string(),
         3033,
-        "artifacts/cert.pem".to_string(),
-        "artifacts/key.pem".to_string());
+        "certificates/server/server-cert.pem".to_string(),
+        "certificates/server/server-key.pem".to_string(),
+        "certificates/ca/ca-cert.pem".to_string());
     let server = Server::new(configuration);
     let cancellation_token = CancellationToken::new();
 

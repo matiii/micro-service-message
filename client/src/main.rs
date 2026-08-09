@@ -5,21 +5,23 @@ use tokio::net::TcpStream;
 use tokio_rustls::rustls::{ClientConfig, RootCertStore};
 use tokio_rustls::rustls::pki_types::ServerName;
 use tokio_rustls::TlsConnector;
-use common::certificates::load_certificates;
+use common::certificates::{load_certificates, load_private_key};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("Hello from client side!");
 
     let mut roots = RootCertStore::empty();
-    let certificates = load_certificates("artifacts/cert.pem")?;
+    let certificates = load_certificates("certificates/ca/ca-cert.pem")?;
     for cert in certificates {
         roots.add(cert)?;
     }
 
+    let client_cert = load_certificates("certificates/client/client-cert.pem")?;
+    let client_key = load_private_key("certificates/client/client-key.pem")?;
     let config = ClientConfig::builder()
         .with_root_certificates(roots)
-        .with_no_client_auth();
+        .with_client_auth_cert(client_cert, client_key)?;
     let connector = TlsConnector::from(Arc::new(config));
     let tcp_stream = TcpStream::connect("127.0.0.1:3033").await?;
     let server_name = ServerName::try_from("localhost")?;
