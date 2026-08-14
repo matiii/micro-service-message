@@ -1,12 +1,15 @@
 use std::sync::Arc;
+use bytes::Bytes;
+use futures_util::{SinkExt, StreamExt};
 use rustls::{RootCertStore, ServerConfig};
 use rustls::server::WebPkiClientVerifier;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::time::{timeout, Duration, interval};
 use tokio_rustls::TlsAcceptor;
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tokio_util::sync::CancellationToken;
 use common::certificates::{load_certificates, load_private_key};
+use common::op_codes::OpCode;
 
 pub struct Server {
     configuration: ServerConfiguration,
@@ -46,33 +49,42 @@ impl Server {
 
             tokio::spawn(async move {
                 match acceptor.accept(stream).await {
-                    Ok(mut stream) => {
-                        let mut ping_interval = interval(Duration::from_secs(10));
-                        let mut bufor = [0u8; 1024];
+                    Ok(stream) => {
+                        let test_connection_code: Bytes = OpCode::TestConnection.serialize().unwrap().into();
+                        let (stream_read, stream_write) = tokio::io::split(stream);
+                        let mut framed_read = FramedRead::new(stream_read, LengthDelimitedCodec::new());
+                        let mut framed_write = FramedWrite::new(stream_write, LengthDelimitedCodec::new());
                         loop {
-                            tokio::select! {
-                                _ = ping_interval.tick() => {
-                                    if let Err(e) = stream.write_all(b"PING\n").await {
-                                        println!("Client dead (write failed): {e}");
-                                        break;
+                            if let Ok(message_stream) = timeout(Duration::from_secs(120), framed_read.next()).await {
+                                if let Some(Ok(x)) = message_stream {
+                                    if let Ok(op_code) = OpCode::deserialize(&x) {
+                                        match op_code {
+                                            OpCode::KeepAlive(_) => { println!("KeepAlive"); continue; }
+                                            OpCode::TestConnection => {
+                                                println!("TestConnection");
+                                                continue;
+                                            }
+                                            OpCode::Connect(connect_details) => {
+                                                println!("Connect: {:?}", connect_details);
+                                            }
+                                            OpCode::Disconnect(_) => {}
+                                            OpCode::Send(send_details) => {
+                                                println!("Send: {:?}", send_details);
+                                            }
+                                            OpCode::Confirmed(_) => {}
+                                            OpCode::Receive(_) => {}
+                                            OpCode::Commit(_) => {}
+                                            OpCode::SetState(_, _) => {}
+                                            OpCode::GetState(_) => {}
+                                        }
                                     }
                                 }
-                                result = timeout(Duration::from_secs(15), stream.read(&mut bufor)) => {
-                                    match result {
-                                        Ok(Ok(0)) => { println!("Client closed connection."); break; }
-                                        Ok(Ok(n)) => {
-                                            let response = String::from_utf8_lossy(&bufor[..n]);
-                                            if response.eq("PONG") {
-                                                println!("Client responded with PONG.");
-                                            } else {
-                                                println!("Received message: '{}'", response);
-
-                                                _ = stream.write_all("I send respond. Server :)".as_bytes()).await;
-                                            }
-                                        }
-                                        Ok(Err(e)) => { println!("Read error: {e}"); break; }
-                                        Err(_) => { println!("No response in 15s — client presumed dead."); break; }
-                                    }
+                            }
+                            else {
+                                println!("Timeout from message read.");
+                                if framed_write.send(test_connection_code.clone()).await.is_err() {
+                                    println!("Client connection closed. Quit connection.");
+                                    break;
                                 }
                             }
                         }

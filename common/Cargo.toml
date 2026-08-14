@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 anyhow.workspace = true
 rustls.workspace = true
+uuid.workspace = true
+serde.workspace = true
+postcard.workspace = true

@@ -6,5 +6,7 @@ edition = "2024"
 [dependencies]
 common.workspace = true
 anyhow.workspace = true
+futures-util.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true
+tokio-util.workspace = true
