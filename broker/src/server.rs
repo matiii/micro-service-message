@@ -1,15 +1,11 @@
 use std::sync::Arc;
-use bytes::Bytes;
-use futures_util::{SinkExt, StreamExt};
 use rustls::{RootCertStore, ServerConfig};
 use rustls::server::WebPkiClientVerifier;
 use tokio::net::TcpListener;
-use tokio::time::{timeout, Duration, interval};
 use tokio_rustls::TlsAcceptor;
-use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tokio_util::sync::CancellationToken;
 use common::certificates::{load_certificates, load_private_key};
-use common::op_codes::OpCode;
+use crate::client_connection::ClientConnection;
 
 pub struct Server {
     configuration: ServerConfiguration,
@@ -44,57 +40,9 @@ impl Server {
                 break;
             }
 
-            let (stream, addr) = listener.accept().await?;
-            let acceptor = acceptor.clone();
+            let client_connection = ClientConnection::new(&listener, acceptor.clone());
 
-            tokio::spawn(async move {
-                match acceptor.accept(stream).await {
-                    Ok(stream) => {
-                        let test_connection_code: Bytes = OpCode::TestConnection.serialize().unwrap().into();
-                        let (stream_read, stream_write) = tokio::io::split(stream);
-                        let mut framed_read = FramedRead::new(stream_read, LengthDelimitedCodec::new());
-                        let mut framed_write = FramedWrite::new(stream_write, LengthDelimitedCodec::new());
-                        loop {
-                            if let Ok(message_stream) = timeout(Duration::from_secs(120), framed_read.next()).await {
-                                if let Some(Ok(x)) = message_stream {
-                                    if let Ok(op_code) = OpCode::deserialize(&x) {
-                                        match op_code {
-                                            OpCode::KeepAlive(_) => { println!("KeepAlive"); continue; }
-                                            OpCode::TestConnection => {
-                                                println!("TestConnection");
-                                                continue;
-                                            }
-                                            OpCode::Connect(connect_details) => {
-                                                println!("Connect: {:?}", connect_details);
-                                            }
-                                            OpCode::Disconnect(_) => {}
-                                            OpCode::Send(send_details) => {
-                                                println!("Send: {:?}", send_details);
-                                            }
-                                            OpCode::Confirmed(_) => {}
-                                            OpCode::Receive(_) => {}
-                                            OpCode::Commit(_) => {}
-                                            OpCode::SetState(_, _) => {}
-                                            OpCode::GetState(_) => {}
-                                        }
-                                    }
-                                }
-                            }
-                            else {
-                                println!("Timeout from message read.");
-                                if framed_write.send(test_connection_code.clone()).await.is_err() {
-                                    println!("Client connection closed. Quit connection.");
-                                    break;
-                                }
-                            }
-                        }
-
-                    },
-                    Err(e) => {
-                        println!("Failed to accept connection: {}", e);
-                    }
-                }
-            });
+            _ = client_connection.handle();
         }
 
         Ok(())

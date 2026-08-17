@@ -14,6 +14,7 @@ pub enum OpCode {
     Commit(Uuid),
     SetState(QueueName, QueueState),
     GetState(QueueName),
+    Error(String),
 }
 
 impl OpCode {
