@@ -5,7 +5,7 @@ use tokio::net::TcpListener;
 use tokio::time::timeout;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
-use tracing::error;
+use tracing::{error, info, trace, warn};
 use common::op_codes::OpCode;
 use crate::router::Router;
 
@@ -26,12 +26,11 @@ impl<'a> ClientConnection<'a> {
         let (stream, addr) = self.listener.accept().await?;
         let acceptor = self.acceptor;
 
-        println!("New connection from {}", addr);
+        trace!("New connection from: '{}'", addr);
 
         tokio::spawn(async move {
             match acceptor.accept(stream).await {
                 Ok(stream) => {
-                    let test_connection_code: Bytes = OpCode::TestConnection.serialize().unwrap().into();
                     let (stream_read, stream_write) = tokio::io::split(stream);
                     let mut framed_read = FramedRead::new(stream_read, LengthDelimitedCodec::new());
                     let framed_write = FramedWrite::new(stream_write, LengthDelimitedCodec::new());
@@ -42,6 +41,12 @@ impl<'a> ClientConnection<'a> {
                             Ok(Some(Ok(x))) => {
                                 match OpCode::deserialize(&x) {
                                     Ok(op_code) => {
+                                        if let OpCode::Disconnect(client_name) = op_code {
+
+                                            info!("Client disconnected: {}", client_name);
+                                            break;
+                                        }
+
                                         router.route(op_code).await;
                                     },
                                     Err(e) => {
@@ -60,11 +65,12 @@ impl<'a> ClientConnection<'a> {
                                 break;
                             }
                             Err(_elapsed) => {
+                                warn!("Client closed connection.");
                                 println!("Timeout from message read.");
-                                // if framed_write.send(test_connection_code.clone()).await.is_err() {
-                                //     println!("Client connection closed. Quit connection.");
-                                //     break;
-                                // }
+                                if router.test_connection().await.is_err() {
+                                    println!("Client connection closed. Quit connection.");
+                                    break;
+                                }
                             }
                         }
                     }
