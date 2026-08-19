@@ -13,14 +13,16 @@ static TEST_CONNECTION_CODE: OnceLock<Bytes> = OnceLock::new();
 
 pub struct Router {
     response:  FramedWrite<WriteHalf<server::TlsStream<TcpStream>>, LengthDelimitedCodec>,
+    namespace: String,
     connect_details: Option<ConnectDetails>,
 }
 
 impl Router {
     
-    pub fn new(response: FramedWrite<WriteHalf<server::TlsStream<TcpStream>>, LengthDelimitedCodec>) -> Self {
+    pub fn new(response: FramedWrite<WriteHalf<server::TlsStream<TcpStream>>, LengthDelimitedCodec>, namespace: String) -> Self {
         Router {
             response,
+            namespace,
             connect_details: None,
         }
     }

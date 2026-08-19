@@ -6,6 +6,7 @@ use tokio::time::timeout;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tracing::{error, info, trace, warn};
+use x509_cert::der::Decode;
 use common::action_codes::ActionCode;
 use crate::router::Router;
 
@@ -31,10 +32,15 @@ impl<'a> ClientConnection<'a> {
         tokio::spawn(async move {
             match acceptor.accept(stream).await {
                 Ok(stream) => {
+                    let (_, connection) = stream.get_ref();
+                    let certs = connection.peer_certificates().unwrap(); // TODO: to fn and handle error
+                    let leaf = certs.first().unwrap();
+                    let parsed = x509_cert::Certificate::from_der(leaf.as_ref()).unwrap();
+                    let namespace = parsed.tbs_certificate().subject().to_string();
                     let (stream_read, stream_write) = tokio::io::split(stream);
                     let mut framed_read = FramedRead::new(stream_read, LengthDelimitedCodec::new());
                     let framed_write = FramedWrite::new(stream_write, LengthDelimitedCodec::new());
-                    let mut router = Router::new(framed_write);
+                    let mut router = Router::new(framed_write, namespace);
 
                     loop {
                         match timeout(Duration::from_secs(120), framed_read.next()).await {
