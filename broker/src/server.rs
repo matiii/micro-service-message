@@ -4,6 +4,7 @@ use rustls::server::WebPkiClientVerifier;
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::sync::CancellationToken;
+use tracing::{error, info, trace};
 use common::certificates::{load_certificates, load_private_key};
 use crate::client_connection::ClientConnection;
 
@@ -35,6 +36,8 @@ impl Server {
         let acceptor = TlsAcceptor::from(Arc::new(config));
         let listener = TcpListener::bind(self.configuration.address()).await?;
 
+        info!("Server listening on {}", listener.local_addr()?);
+
         loop {
             if cancellation_token.is_cancelled() {
                 break;
@@ -42,7 +45,14 @@ impl Server {
 
             let client_connection = ClientConnection::new(&listener, acceptor.clone());
 
-            _ = client_connection.handle();
+            match client_connection.handle().await {
+                Err(error) => {
+                    error!(%error, "Error handling client connection");
+                }
+                Ok(_) => {
+                    trace!("Client connection established");
+                }
+            }
         }
 
         Ok(())

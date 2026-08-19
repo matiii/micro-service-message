@@ -6,7 +6,7 @@ use tokio::time::timeout;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tracing::{error, info, trace, warn};
-use common::op_codes::OpCode;
+use common::action_codes::ActionCode;
 use crate::router::Router;
 
 pub struct ClientConnection<'a> {
@@ -39,9 +39,9 @@ impl<'a> ClientConnection<'a> {
                     loop {
                         match timeout(Duration::from_secs(120), framed_read.next()).await {
                             Ok(Some(Ok(x))) => {
-                                match OpCode::deserialize(&x) {
+                                match ActionCode::deserialize(&x) {
                                     Ok(op_code) => {
-                                        if let OpCode::Disconnect(client_name) = op_code {
+                                        if let ActionCode::Disconnect(client_name) = op_code {
 
                                             info!("Client disconnected: {}", client_name);
                                             break;
@@ -57,18 +57,23 @@ impl<'a> ClientConnection<'a> {
                                 }
                             }
                             Ok(Some(Err(e))) => {
-                                println!("Codec/IO error reading frame: {e}");
+                                let client_name = router.get_client_name();
+
+                                warn!("For client: '{client_name}' connection error: {e}");
                                 break;
                             }
                             Ok(None) => {
-                                println!("Client closed connection.");
+                                let client_name = router.get_client_name();
+
+                                trace!("Client: '{client_name}' closed connection.");
                                 break;
                             }
-                            Err(_elapsed) => {
-                                warn!("Client closed connection.");
-                                println!("Timeout from message read.");
+                            Err(elapsed) => {
+                                let client_name = router.get_client_name().to_owned();
+                                warn!("For client: '{client_name}' timeout: '{elapsed}' occurred.");
+
                                 if router.test_connection().await.is_err() {
-                                    println!("Client connection closed. Quit connection.");
+                                    info!("For client: '{client_name}' connection closed. Quit connection.");
                                     break;
                                 }
                             }
@@ -77,7 +82,7 @@ impl<'a> ClientConnection<'a> {
 
                 },
                 Err(e) => {
-                    println!("Failed to accept connection: {}", e);
+                    error!("Failed from: {addr} to accept connection: {e}");
                 }
             }
         });

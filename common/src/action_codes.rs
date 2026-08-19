@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub enum OpCode {
+pub enum ActionCode {
     KeepAlive(ClientName),
     TestConnection,
     Connect(ConnectDetails),
@@ -17,7 +17,7 @@ pub enum OpCode {
     Error(String),
 }
 
-impl OpCode {
+impl ActionCode {
 
     pub fn serialize(&self) -> anyhow::Result<Vec<u8>> {
         postcard::to_allocvec(&self)

@@ -8,7 +8,7 @@ use tokio_rustls::rustls::pki_types::ServerName;
 use tokio_rustls::TlsConnector;
 use tokio_util::codec::{ FramedRead, FramedWrite, LengthDelimitedCodec};
 use common::certificates::{load_certificates, load_private_key};
-use common::op_codes::{ConnectDetails, OpCode, SendDetails};
+use common::action_codes::{ConnectDetails, ActionCode, SendDetails};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
     let (stream_read, stream_write) = tokio::io::split(tls_stream);
     let mut framed_read = FramedRead::new(stream_read, LengthDelimitedCodec::new());
     let mut framed_write = FramedWrite::new(stream_write, LengthDelimitedCodec::new());
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<OpCode>(32);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<ActionCode>(32);
     let keep_alive_tx= tx.clone();
 
     tokio::spawn(async move {
@@ -58,11 +58,11 @@ async fn main() -> anyhow::Result<()> {
         loop {
             tokio::time::sleep(Duration::from_secs(30)).await;
 
-            _ = keep_alive_tx.send(OpCode::KeepAlive(client_name.to_string())).await;
+            _ = keep_alive_tx.send(ActionCode::KeepAlive(client_name.to_string())).await;
         }
     });
 
-    tx.send(OpCode::Connect(ConnectDetails::new(client_name.to_string(), vec!["*".to_string()], 1000))).await?;
+    tx.send(ActionCode::Connect(ConnectDetails::new(client_name.to_string(), vec!["*".to_string()], 1000))).await?;
 
     loop {
         print!("Type a message: ");
@@ -74,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
 
             println!("Send input from client: '{}'", input);
             
-            tx.send(OpCode::Send(SendDetails::new(
+            tx.send(ActionCode::Send(SendDetails::new(
                 "some-queue".to_string(),
                 input.to_string(),
                 1,

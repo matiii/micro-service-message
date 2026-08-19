@@ -43,7 +43,7 @@ fn init_tracing() -> tracing_appender::non_blocking::WorkerGuard {
         .with_writer(non_blocking);
 
     tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace")))
         .with(stdout_layer)
         .with(file_layer)
         .init();
