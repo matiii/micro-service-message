@@ -2,7 +2,7 @@ use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{fmt, EnvFilter};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use crate::server::{Server, ServerConfiguration};
+use crate::server::{Server, ServerConfiguration, StorageConfiguration};
 
 mod server;
 mod client_connection;
@@ -19,7 +19,11 @@ async fn main() -> anyhow::Result<()> {
         "certificates/server/server-cert.pem".to_string(),
         "certificates/server/server-key.pem".to_string(),
         "certificates/ca/ca-cert.pem".to_string());
-    let server = Server::new(configuration);
+    let storage_configuration = StorageConfiguration::new(
+        "local-storage".to_string(),
+        "snapshot-storage".to_string(),
+    );
+    let server = Server::new(configuration, storage_configuration);
     let cancellation_token = CancellationToken::new();
 
     server.run(cancellation_token).await?;

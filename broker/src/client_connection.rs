@@ -1,6 +1,5 @@
 use std::time::Duration;
-use bytes::Bytes;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{StreamExt};
 use tokio::net::TcpListener;
 use tokio::time::timeout;
 use tokio_rustls::TlsAcceptor;
@@ -9,6 +8,8 @@ use tracing::{error, info, trace, warn};
 use common::action_codes::ActionCode;
 use common::certificates::get_certificate_subject;
 use crate::router::Router;
+
+static SUBJECT_PREFIX: &str = "CN=";
 
 pub struct ClientConnection<'a> {
     listener: &'a TcpListener,
@@ -26,6 +27,7 @@ impl<'a> ClientConnection<'a> {
     pub async fn handle(self) -> anyhow::Result<()> {
         let (stream, addr) = self.listener.accept().await?;
         let acceptor = self.acceptor;
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<ActionCode>(32);
 
         trace!("New connection from: '{}'", addr);
 
@@ -33,7 +35,7 @@ impl<'a> ClientConnection<'a> {
             match acceptor.accept(stream).await {
                 Ok(stream) => {
                     let namespace = match get_certificate_subject(&stream) {
-                        Ok(s) => s.strip_prefix("CN=").unwrap_or(s.as_ref()).to_string(),
+                        Ok(s) => s.strip_prefix(SUBJECT_PREFIX).unwrap_or(s.as_ref()).to_string(),
                         Err(e) => {
                             error!("Failed to get certificate subject from connection: '{}'", e);
 

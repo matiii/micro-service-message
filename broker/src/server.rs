@@ -10,11 +10,12 @@ use crate::client_connection::ClientConnection;
 
 pub struct Server {
     configuration: ServerConfiguration,
+    storage_configuration: StorageConfiguration,
 }
 
 impl Server {
-    pub fn new(configuration: ServerConfiguration) -> Self {
-        Server { configuration }
+    pub fn new(configuration: ServerConfiguration, storage_configuration: StorageConfiguration) -> Self {
+        Server { configuration, storage_configuration }
     }
 
     pub async fn run(&self, cancellation_token: CancellationToken) -> anyhow::Result<()> {
@@ -102,5 +103,24 @@ impl ServerConfiguration {
 
     pub fn ca_path(&self) -> &str {
         &self.ca_path
+    }
+}
+
+pub struct StorageConfiguration {
+    storage_path: String,
+    snapshot_path: String,
+}
+
+impl StorageConfiguration {
+    pub fn new(storage_path: String, snapshot_path: String) -> Self {
+        Self { storage_path, snapshot_path }
+    }
+
+    pub fn storage_path(&self) -> &str {
+        &self.storage_path
+    }
+
+    pub fn snapshot_path(&self) -> &str {
+        &self.snapshot_path
     }
 }
