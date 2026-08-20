@@ -5,7 +5,10 @@ edition = "2024"
 
 [dependencies]
 anyhow.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
 rustls.workspace = true
 uuid.workspace = true
 serde.workspace = true
 postcard.workspace = true
+x509-cert.workspace = true

@@ -80,4 +80,8 @@ impl Router {
     pub fn get_client_name(&self) -> &str {
         self.connect_details.as_ref().map_or("", |x| x.unique_name().as_ref())
     }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
 }

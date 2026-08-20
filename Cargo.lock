@@ -70,7 +70,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "x509-cert",
 ]
 
 [[package]]
@@ -147,7 +146,10 @@ dependencies = [
  "postcard",
  "rustls",
  "serde",
+ "tokio",
+ "tokio-rustls",
  "uuid",
+ "x509-cert",
 ]
 
 [[package]]
